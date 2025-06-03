@@ -1,0 +1,31 @@
+{
+  "name": "chained-styles",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "ts-node": "10.9.2",
+    "tsup": "8.5.0",
+    "typescript": "5.8.3"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*",
+    "react-native-reanimated": "*",
+    "styled-components": "*"
+  },
+  "dependencies": {
+    "flexible-chain": "^0.0.6"
+  }
+}

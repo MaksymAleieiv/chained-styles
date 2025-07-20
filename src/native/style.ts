@@ -1,18 +1,19 @@
-import { Ref } from 'react';
-import { Text, TextInput, View } from 'react-native';
-import Reanimated from 'react-native-reanimated';
-import { CSSObject } from 'styled-components';
-import styled from 'styled-components/native';
+import { Ref } from "react";
+import { Text, TextInput, View } from "react-native";
+import Reanimated from "react-native-reanimated";
+import { CSSObject } from "styled-components";
+import styled from "styled-components/native";
 
-import { flexStyles } from './styles/flex';
-import { StyleBorder } from './styles/style.border';
-import { StyleCustom } from './styles/style.custom';
-import { StyleOpacity } from './styles/style.opacity';
-import { StylePosition } from './styles/style.position';
-import { StyleSize } from './styles/style.size';
-import { textStyles } from './styles/text';
-import { ChainedStylesThemeType } from './style.interface';
-import { isFunction } from './utils/is-type.util';
+import { ChainedStylesThemeType } from "../shared/style.interface";
+import { isFunction } from "../shared/utils/is-type.util";
+import { StyleSize } from "../shared/styles/style.size";
+import { StyleBorder } from "../shared/styles/style.border";
+import { StylePosition } from "../shared/styles/style.position";
+import { StyleOpacity } from "../shared/styles/style.opacity";
+import { StyleCustom } from "../shared/styles/style.custom";
+import { textStyles } from "../shared/styles/text";
+import { flexStyles } from "../shared/styles/flex";
+import { generateStyle as generateStyleUtil } from "../shared/style.util";
 
 type RefType<T> = { ref?: Ref<T | undefined> };
 
@@ -31,12 +32,12 @@ const getStyle =
   (theme: ChainedStylesThemeType): any => {
     const functionStyles = Object.values(combineResults)
       .filter(isFunction)
-      .map(func => func(theme));
+      .map((func) => func(theme));
 
     const functionStylesObject = Object.assign({}, ...functionStyles);
 
     const nonFunctionProps = Object.fromEntries(
-      Object.entries(combineResults).filter(([, value]) => !isFunction(value)),
+      Object.entries(combineResults).filter(([, value]) => !isFunction(value))
     );
 
     return {
@@ -45,11 +46,14 @@ const getStyle =
     };
   };
 
-export const styledComponents = {
-  View: <T extends object>(props: CSSObject) => styled.View<ChainedStylesThemeType<T & RefType<View>>>(getStyle(props)),
-  ViewStyled: <T extends object>(props: CSSObject) => styled(styledComponents.View<ChainedStylesThemeType<T>>(props)),
+const styledComponents = {
+  View: <T extends object>(props: CSSObject) =>
+    styled.View<ChainedStylesThemeType<T & RefType<View>>>(getStyle(props)),
+  ViewStyled: <T extends object>(props: CSSObject) =>
+    styled(styledComponents.View<ChainedStylesThemeType<T>>(props)),
 
-  Pressable: <T extends object>(props: CSSObject) => styled.Pressable<ChainedStylesThemeType<T>>(getStyle(props)),
+  Pressable: <T extends object>(props: CSSObject) =>
+    styled.Pressable<ChainedStylesThemeType<T>>(getStyle(props)),
   PressableStyled: <T extends object>(props: CSSObject) =>
     styled(styledComponents.Pressable<ChainedStylesThemeType<T>>(props)),
   TouchableOpacity: <T extends object>(props: CSSObject) =>
@@ -59,14 +63,19 @@ export const styledComponents = {
   TouchableHighlight: <T extends object>(props: CSSObject) =>
     styled.TouchableHighlight<ChainedStylesThemeType<T>>(getStyle(props)),
   TouchableHighlightStyled: <T extends object>(props: CSSObject) =>
-    styled(styledComponents.TouchableHighlight<ChainedStylesThemeType<T>>(props)),
+    styled(
+      styledComponents.TouchableHighlight<ChainedStylesThemeType<T>>(props)
+    ),
 
   Text: <T extends object>(props: CSSObject) =>
     styled(Text)<ChainedStylesThemeType<T & RefType<Text>>>(getStyle(props)),
-  TextStyled: <T extends object>(props: CSSObject) => styled(styledComponents.Text<ChainedStylesThemeType<T>>(props)),
+  TextStyled: <T extends object>(props: CSSObject) =>
+    styled(styledComponents.Text<ChainedStylesThemeType<T>>(props)),
 
   TextInput: <T extends object>(props: CSSObject) =>
-    styled.TextInput<ChainedStylesThemeType<T & RefType<TextInput>>>(getStyle({ ...props })),
+    styled.TextInput<ChainedStylesThemeType<T & RefType<TextInput>>>(
+      getStyle({ ...props })
+    ),
   TextInputStyled: <T extends object>(props: CSSObject) =>
     styled(styledComponents.TextInput<ChainedStylesThemeType<T>>(props)),
 
@@ -81,3 +90,12 @@ export const styledComponents = {
 
   ApplyStyles: (props: CSSObject) => getStyle(props),
 };
+
+export const generateStyle = <
+  T extends Record<string, string>,
+  U extends Record<string, any>
+>(
+  colors: T,
+  additionalStyles: U
+) =>
+  generateStyleUtil(colors, additionalStyles, defaultStyles, styledComponents);

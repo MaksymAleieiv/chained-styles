@@ -1,19 +1,37 @@
 {
   "name": "chained-styles",
-  "version": "1.0.2",
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
+  "version": "2.0.1",
+  "exports": {
+    ".": {
+      "types": "./dist/web.d.ts",
+      "import": "./dist/web.mjs",
+      "require": "./dist/web.js"
+    },
+    "./native": {
+      "types": "./dist/native.d.ts",
+      "import": "./dist/native.mjs",
+      "require": "./dist/native.js"
+    }
+  },
   "files": [
     "dist"
   ],
   "scripts": {
     "build": "tsup",
+    "publish": "npm publish",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "A tree-shakeable styled-components library for React and React Native with platform-specific optimizations",
+  "keywords": [
+    "react",
+    "react-native",
+    "styled-components",
+    "css-in-js",
+    "tree-shaking",
+    "typescript"
+  ],
   "devDependencies": {
     "tsup": "8.5.0",
     "typescript": "5.8.3",

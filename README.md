@@ -22,6 +22,65 @@ yarn add chained-styles
 
 ## Usage
 
+```typescript
+// Component.styles.ts
+
+import { Style } from "@theme/style/style";
+import { PADDING_HORIZONTAL_COEF } from "@utils/constants";
+import { screenWidth } from "@utils/device-info.util";
+import { getSize } from '@utils/get-size.util';
+
+export const HOME_HEADER_PADDING_COEF = PADDING_HORIZONTAL_COEF;
+
+// typesafe props
+interface HomeFriendCardWrapperProps {
+  isFirst: boolean;
+}
+
+interface HomeHeaderUpcomingWrapperProps {
+  hasUpcoming: boolean;
+}
+
+// Pass size token to .RowGap, this will determinate correct size based on getSize function you provided
+// In our case this will translate to 'row-gap: 16' for phones with 812px screen height
+export const HomeHeaderSliderWrapper = Style.ModeBgBase2.RowGap(2).Padding(5, 0, 2.25).View;
+
+// Add custom logic to your styles based on typesafe props!
+export const HomeFriendCardWrapper = Style.ModeBgBase1.Margin(0.75, PADDING_HORIZONTAL_COEF).ViewStyled<HomeFriendCardWrapperProps>`
+  margin-top: ${({ isFirst }) => getSize(isFirst ? 1.5 : 0.75, false)}
+`;
+
+// We use insets passed from theme context !
+export const HomeHeaderWrapper = Style.ViewStyled`
+  padding-top: ${({ theme }) => theme.insets.top}px;
+`;
+
+// Easily apply existing styles using .ApplyStyles({ theme }) !
+export const HomeHeaderUpcomingWrapper = Style.Padding(
+  0,
+  HOME_HEADER_PADDING_COEF
+).ViewStyled<HomeHeaderUpcomingWrapperProps>`
+  ${({ hasUpcoming, theme }) => (hasUpcoming ? Style.ModeColorAttention.ApplyStyles({ theme }) : Style.ModeColorSecondary.ApplyStyles({ theme }))
+`;
+
+// Component.tsx
+
+export const HomeHeader = () => {
+  return (
+    <HomeHeaderWrapper onLayout={handleLayout}>
+      <HomeHeaderSliderWrapper>
+        <HomeHeaderUpcomingWrapper hasUpcoming={false}>
+          <UpcomingEvent />
+        </HomeHeaderUpcomingWrapper>
+      </HomeHeaderSliderWrapper>
+
+      <HomeFriendCardWrapper isFirst />
+      <HomeFriendCardWrapper isFirst={false} />
+    </HomeHeaderWrapper>
+  );
+};
+```
+
 ### Setup size utils
 
 #### Size utils will help you keep same size rules between various components of your components.
@@ -275,81 +334,4 @@ export const Style = generateStyle(ColorEnum, {
   ...colorStyles,
   ...typographyStyles,
 });
-```
-
-### Usage
-
-```typescript
-// Component.styles.ts
-
-import { Style } from "@theme/style/style";
-import { PADDING_HORIZONTAL_COEF } from "@utils/constants";
-import { screenWidth } from "@utils/device-info.util";
-import { getSize } from '@utils/get-size.util';
-
-export const HOME_HEADER_PADDING_COEF = PADDING_HORIZONTAL_COEF;
-
-// typesafe props
-interface HomeFriendCardWrapperProps {
-  isFirst: boolean;
-}
-
-interface HomeHeaderUpcomingWrapperProps {
-  hasUpcoming: boolean;
-}
-
-// Pass size token to .RowGap, this will determinate correct size based on getSize function you provided
-// In our case this will translate to 'row-gap: 16' for phones with 812px screen height
-export const HomeHeaderliderWrapper = Style.RowGap(2).Padding(5, 0, 2.25).View;
-
-// Add custom logic to your styles based on typesafe props!
-export const HomeFriendCardWrapper = Style.Margin(0.75, PADDING_HORIZONTAL_COEF).ViewStyled<HomeFriendCardWrapperProps>`
-  margin-top: ${({ isFirst }) => getSize(isFirst ? 1.5 : 0.75, false)}
-`;
-
-// We use insets passed from theme context !
-export const HomeHeaderWrapper = Style.ViewStyled`
-  padding-top: ${({ theme }) => theme.insets.top}px;
-`;
-
-// Easily apply existing styles using .ApplyStyles({ theme }) !
-export const HomeHeaderUpcomingWrapper = Style.Padding(
-  0,
-  HOME_HEADER_PADDING_COEF
-).ViewStyled<HomeHeaderUpcomingWrapperProps>`
-  ${({ hasUpcoming, theme }) => (hasUpcoming ? Style.ModeColorAttention.ApplyStyles({ theme }) : Style.ModeColorSecondary.ApplyStyles({ theme }))
-`;
-
-// Component.tsx
-
-export const HomeHeader = () => {
-  const animatedRef = useAnimatedRef<Animated.ScrollView>();
-  const sliderOffset = useScrollViewOffset(animatedRef);
-  const { setHeaderHeight } = useHomeContext();
-  const { position, setPosition } = useHomeContext();
-
-  useHomeHeaderStatusBar();
-
-  const handleLayout = (event: LayoutChangeEvent) => setHeaderHeight(event.nativeEvent.layout.height);
-
-  return (
-    <HomeHeaderWrapper onLayout={handleLayout}>
-      <DefaultGradient />
-
-      <HomeHeaderliderWrapper>
-        <Slider animatedRef={animatedRef} slideWidth={screenWidth} position={position} setPosition={setPosition}>
-          {friends.map((_, index) => (
-            <HomeHeaderUpcomingWrapper key={index}>
-              <UpcomingEvent />
-            </HomeHeaderUpcomingWrapper>
-          ))}
-        </Slider>
-
-        {friends.length > 1 && (
-          <SliderIndicator scrollOffset={sliderOffset} slidesCount={friends.length} slideWidth={screenWidth} />
-        )}
-      </HomeHeaderliderWrapper>
-    </HomeHeaderWrapper>
-  );
-};
 ```

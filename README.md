@@ -22,240 +22,334 @@ yarn add chained-styles
 
 ## Usage
 
-### Tree-shakeable Imports (Recommended)
+### Setup size utils
 
-For optimal bundle size, import directly from the platform-specific modules:
+#### Size utils will help you keep same size rules between various components of your components.
 
-#### Web Components
+In this example we will create a size util that changes size relative to phone width so we dont have to worry about text running out of boundaries on different phone sizes
 
 ```typescript
-import {
-  styledComponents,
-  defaultStyles,
-  generateWebStyle,
-} from "chained-styles/web";
+// size.util.ts
 
-// Use web-specific HTML elements
-const StyledDiv = styledComponents.Div({
-  width: 100,
-  height: 100,
-  backgroundColor: "blue",
-});
+export const LAYOUT_MESH_RATIO = 8;
+const SCALING_FACTOR = 0.5;
+const LAYOUT_HEIGHT = 812;
 
-const StyledButton = styledComponents.Button({
-  padding: 16,
-  borderRadius: 8,
-});
+const scale = (size: number) => (size * screenHeight) / LAYOUT_HEIGHT;
 
-// Available web components:
-// Div, Section, Article, Header, Footer, Main, Nav, Aside
-// Span, P, H1-H6, Strong, Em, Small
-// Ul, Ol, Li
-// Button, A, Input, Textarea, Select, Option, Label, Form
-// Img, Video, Audio
-// Table, Thead, Tbody, Tr, Td, Th
+export const makeSmoothScale = (size: number) =>
+  size + (scale(size) - size) * SCALING_FACTOR;
+
+export function getFontSize(size: number, hasUnit = true) {
+  const flexibleFontSize = Math.round(makeSmoothScale(size));
+
+  return hasUnit ? `${flexibleFontSize}px` : flexibleFontSize;
+}
+
+export function getSize(coefficient: number, hasUnit = true) {
+  const newSize = Math.round(
+    PixelRatio.roundToNearestPixel(
+      makeSmoothScale(LAYOUT_MESH_RATIO) * coefficient
+    )
+  );
+
+  return hasUnit ? `${newSize}px` : newSize;
+}
 ```
 
-#### React Native Components
+### Setup colors pallete
+
+#### Chained styles uses the colors that you provide to creates typesafe style extensions like Style.Base1.View
 
 ```typescript
-import {
-  styledComponents,
-  defaultStyles,
-  generateNativeStyle,
-} from "chained-styles/native";
+// colors.enum.ts
 
-// Use React Native components
-const StyledView = styledComponents.View({
-  width: 100,
-  height: 100,
-  backgroundColor: "blue",
-});
+export enum ColorEnum {
+  Base1 = "#FFFFFF",
+  DarkBase1 = "#111111",
 
-const StyledTouchable = styledComponents.TouchableOpacity({
-  padding: 16,
-  borderRadius: 8,
-});
-
-// Available native components:
-// View, Pressable, TouchableOpacity, TouchableHighlight
-// Text, TextInput, AnimatedTextInput
-// AnimatedView, AnimatedText
+  Base2 = "#F1F0F0",
+  DarkBase2 = "#111111",
+}
 ```
 
-### Legacy Import (Includes Both Platforms)
+### Setup theme
+
+#### Since chained styles are build on top of styled-components we support expandable themes, in this example we will add dark/light themes and our _happy_ theme
 
 ```typescript
-import { web, native } from "chained-styles";
+// theme.util.ts
 
-// Access web components
-const WebDiv = web.styledComponents.Div({ width: 100 });
+export enum ThemeModeEnum {
+  LIGHT = "light",
+  DARK = "dark",
+  HAPPY = "happy",
+}
 
-// Access native components
-const NativeView = native.styledComponents.View({ width: 100 });
+export const createModeColors = <T extends ColorEnum>(
+  light: T,
+  dark: T
+): ThemeColorsType => ({
+  light,
+  dark,
+  happy: light,
+});
 ```
 
-## Available Styles
+### Create theme context
 
-All platforms support the following style categories:
-
-### Size Styles
-
-- `width`, `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`
-- `w`, `h`, `minW`, `maxW`, `minH`, `maxH` (shortcuts)
-
-### Flex Styles
-
-- `flex`, `flexDirection`, `justifyContent`, `alignItems`, `alignSelf`
-- `flexWrap`, `alignContent`, `gap`, `rowGap`, `columnGap`
-
-### Position Styles
-
-- `position`, `top`, `right`, `bottom`, `left`
-- `zIndex`
-
-### Border Styles
-
-- `border`, `borderWidth`, `borderColor`, `borderStyle`
-- `borderRadius`, `borderTop`, `borderRight`, `borderBottom`, `borderLeft`
-
-### Text Styles
-
-- `fontSize`, `fontWeight`, `fontFamily`, `lineHeight`
-- `textAlign`, `textDecoration`, `textTransform`, `color`
-
-### Opacity
-
-- `opacity`
-
-## Generating Custom Styles
-
-Both platforms provide helper functions to generate custom styled components with colors:
-
-### Web
+#### Here you can add any property that you want, this property will later be accessible in custom styles. For this example we will pass insets from react-native-safe-area-context and our custom getSize function
 
 ```typescript
-import { generateWebStyle } from "chained-styles/web";
+// theme.tsx
+import { PropsWithChildren } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ThemeProvider } from "styled-components/native";
 
-const colors = {
-  primary: "#007bff",
-  secondary: "#6c757d",
-  success: "#28a745",
+import { ThemeInterface } from "./theme.interface";
+import { getSize } from "@utils/get-size.util";
+import { StorageKeysEnum } from "@enums/storage-keys.enum";
+import { useStorage } from "@hooks/storage/storage.hook";
+import { ThemeModeEnum } from "@enums/theme.enum";
+
+export const ThemeContextProvider = ({ children }: PropsWithChildren) => {
+  const [mode] = useStorage(StorageKeysEnum.Theme, ThemeModeEnum.LIGHT);
+  const insets = useSafeAreaInsets();
+
+  const theme: ThemeInterface = {
+    insets,
+    getSize,
+    mode,
+  };
+
+  return <ThemeProvider theme={theme}>{children}</ThemeProvider>;
 };
+```
 
-const additionalStyles = {
-  card: {
-    padding: 16,
-    borderRadius: 8,
-    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+### Setup theme colors
+
+#### Prepare colors.
+
+`base1Colors` - colors that you use wherever you want for exapmle you will pass these to icons as background
+`colorStyles` - object that contains your own 'classes', these will be accessible like this Style.ModeColorPrimary.View
+
+```typescript
+// colors.ts
+type ColorKeyType = "color" | "backgroundColor";
+type ThemeColorsType = Record<ThemeModeEnum, ColorEnum>;
+
+const getThemeColorStyle =
+  (colors: ThemeColorsType, styleName: ColorKeyType) =>
+  ({ theme }: ChainedStylesThemeType) => ({
+    [styleName]: colors[theme.mode],
+  });
+
+export const base1Colors = createModeColors(
+  ColorEnum.Base1,
+  ColorEnum.DarkBase1
+);
+export const base2Colors = createModeColors(
+  ColorEnum.Base2,
+  ColorEnum.DarkBase2
+);
+
+export const primaryColors = createModeColors(
+  ColorEnum.Primary,
+  ColorEnum.Primary
+);
+export const ghostColors = createModeColors(
+  ColorEnum.Ghost,
+  ColorEnum.DarkGhost
+);
+
+export const primaryTextColors = createModeColors(
+  ColorEnum.TextPrimary,
+  ColorEnum.DarkTextPrimary
+);
+export const secondaryTextColors = createModeColors(
+  ColorEnum.TextSecondary,
+  ColorEnum.DarkTextSecondary
+);
+export const attentionTextColors = createModeColors(
+  ColorEnum.TextAttention,
+  ColorEnum.DarkTextAttention
+);
+
+export const colorStyles = {
+  ModeBgColorBase1: {
+    getPropertyBackgroundColor: getThemeColorStyle(
+      base1Colors,
+      "backgroundColor"
+    ),
+  },
+  ModeBgColorBase2: {
+    getPropertyBackgroundColor: getThemeColorStyle(
+      base2Colors,
+      "backgroundColor"
+    ),
+  },
+  ModeBgColorPrimary: {
+    getPropertyBackgroundColor: getThemeColorStyle(
+      primaryColors,
+      "backgroundColor"
+    ),
+  },
+  ModeColorPrimary: {
+    getPropertyColor: getThemeColorStyle(primaryTextColors, "color"),
+  },
+  ModeColorGhost: {
+    getPropertyColor: getThemeColorStyle(ghostColors, "color"),
+  },
+  ModeColorSecondary: {
+    getPropertyColor: getThemeColorStyle(secondaryTextColors, "color"),
+  },
+  ModeColorAttention: {
+    getPropertyColor: getThemeColorStyle(attentionTextColors, "color"),
+  },
+  DEBUG: {
+    backgroundColor: "red",
+  },
+  TransparentBg: {
+    backgroundColor: "transparent",
   },
 };
-
-const customStyles = generateWebStyle(colors, additionalStyles);
-
-// Use generated styles
-const PrimaryButton = customStyles.Button.primary.card();
-const SecondaryDiv = customStyles.Div.secondary.card();
 ```
 
-### React Native
+Notice getPropertyBackgroundColor and getPropertyColor, these are functions that will be called by chained-styles to determine your styles for background and text color. You can write your own functions that will return any styles you want.
+
+#### !!! Important: custom functions with the same name will be overwritten by the last style in chain
+
+### Setup typography
+
+#### Here we add fonts with predetermined sizes, this will allow us to control font sizes across whole app. Note that we use our custom getFontSize util, later you can use this util on icon sizes so they have the same size as text!
 
 ```typescript
-import { generateNativeStyle } from "chained-styles/native";
+// typography.ts
 
-const colors = {
-  primary: "#007bff",
-  secondary: "#6c757d",
-};
+enum FontFamilyEnum {
+  RobotoBold = "RobotoFlex-Bold",
+  RobotoRegular = "RobotoFlex-Regular",
+  RobotoLight = "RobotoFlex-Light",
+}
 
-const additionalStyles = {
-  shadow: {
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+export const typographyStyles = {
+  BodyLargeBold: {
+    fontFamily: FontFamilyEnum.RobotoBold,
+    fontSize: getFontSize(22),
+    lineHeight: getFontSize(26),
+  },
+  BodyLargeRegular: {
+    fontFamily: FontFamilyEnum.RobotoRegular,
+    fontSize: getFontSize(22),
+    lineHeight: getFontSize(26),
+  },
+  BodyMediumBold: {
+    fontFamily: FontFamilyEnum.RobotoBold,
+    fontSize: getFontSize(16),
+    lineHeight: getFontSize(24),
+  },
+  BodyMediumRegular: {
+    fontFamily: FontFamilyEnum.RobotoRegular,
+    fontSize: getFontSize(16),
+    lineHeight: getFontSize(24),
+  },
+  BodySmallBold: {
+    fontFamily: FontFamilyEnum.RobotoBold,
+    fontSize: getFontSize(14),
+    lineHeight: getFontSize(20),
+  },
+  BodySmallRegular: {
+    fontFamily: FontFamilyEnum.RobotoRegular,
+    fontSize: getFontSize(14),
+    lineHeight: getFontSize(20),
   },
 };
-
-const customStyles = generateNativeStyle(colors, additionalStyles);
-
-// Use generated styles
-const PrimaryView = customStyles.View.primary.shadow();
-const SecondaryText = customStyles.Text.secondary();
 ```
 
-## TypeScript Support
-
-The library is fully typed with TypeScript. All components include proper ref types:
+### Final setup
 
 ```typescript
-import { styledComponents } from "chained-styles/web";
-import { useRef } from "react";
+// style.ts
 
-const MyComponent = () => {
-  const divRef = useRef<HTMLDivElement>(null);
+export const Style = generateStyle(ColorEnum, {
+  ...colorStyles,
+  ...typographyStyles,
+});
+```
 
-  const StyledDiv = styledComponents.Div({ width: 100 });
+### Usage
 
-  return <StyledDiv ref={divRef}>Content</StyledDiv>;
+```typescript
+// Component.styles.ts
+
+import { Style } from "@theme/style/style";
+import { PADDING_HORIZONTAL_COEF } from "@utils/constants";
+import { screenWidth } from "@utils/device-info.util";
+import { getSize } from '@utils/get-size.util';
+
+export const HOME_HEADER_PADDING_COEF = PADDING_HORIZONTAL_COEF;
+
+// typesafe props
+interface HomeFriendCardWrapperProps {
+  isFirst: boolean;
+}
+
+interface HomeHeaderUpcomingWrapperProps {
+  hasUpcoming: boolean;
+}
+
+// Pass size token to .RowGap, this will determinate correct size based on getSize function you provided
+// In our case this will translate to 'row-gap: 16' for phones with 812px screen height
+export const HomeHeaderliderWrapper = Style.RowGap(2).Padding(5, 0, 2.25).View;
+
+// Add custom logic to your styles based on typesafe props!
+export const HomeFriendCardWrapper = Style.Margin(0.75, PADDING_HORIZONTAL_COEF).ViewStyled<HomeFriendCardWrapperProps>`
+  margin-top: ${({ isFirst }) => getSize(isFirst ? 1.5 : 0.75, false)}
+`;
+
+// We use insets passed from theme context !
+export const HomeHeaderWrapper = Style.ViewStyled`
+  padding-top: ${({ theme }) => theme.insets.top}px;
+`;
+
+// Easily apply existing styles using .ApplyStyles({ theme }) !
+export const HomeHeaderUpcomingWrapper = Style.Padding(
+  0,
+  HOME_HEADER_PADDING_COEF
+).ViewStyled<HomeHeaderUpcomingWrapperProps>`
+  ${({ hasUpcoming, theme }) => (hasUpcoming ? Style.ModeColorAttention.ApplyStyles({ theme }) : Style.ModeColorSecondary.ApplyStyles({ theme }))
+`;
+
+// Component.tsx
+
+export const HomeHeader = () => {
+  const animatedRef = useAnimatedRef<Animated.ScrollView>();
+  const sliderOffset = useScrollViewOffset(animatedRef);
+  const { setHeaderHeight } = useHomeContext();
+  const { position, setPosition } = useHomeContext();
+
+  useHomeHeaderStatusBar();
+
+  const handleLayout = (event: LayoutChangeEvent) => setHeaderHeight(event.nativeEvent.layout.height);
+
+  return (
+    <HomeHeaderWrapper onLayout={handleLayout}>
+      <DefaultGradient />
+
+      <HomeHeaderliderWrapper>
+        <Slider animatedRef={animatedRef} slideWidth={screenWidth} position={position} setPosition={setPosition}>
+          {friends.map((_, index) => (
+            <HomeHeaderUpcomingWrapper key={index}>
+              <UpcomingEvent />
+            </HomeHeaderUpcomingWrapper>
+          ))}
+        </Slider>
+
+        {friends.length > 1 && (
+          <SliderIndicator scrollOffset={sliderOffset} slidesCount={friends.length} slideWidth={screenWidth} />
+        )}
+      </HomeHeaderliderWrapper>
+    </HomeHeaderWrapper>
+  );
 };
 ```
-
-## Advanced Usage
-
-### Creating Custom Styled Components
-
-You can use the helper functions to create your own styled components. Each function generates **both** the base component and styled version:
-
-```typescript
-import {
-  createStyledComponent,
-  createStyledComponents,
-} from "chained-styles/web";
-
-// Create BOTH Div and DivStyled from a single function call
-const { Div, DivStyled } = createStyledComponent("div");
-const MyDiv = Div({ width: 100, padding: 16 });
-const MyStyledDiv = DivStyled({ borderRadius: 8 });
-
-// Create multiple components at once - generates ALL base + styled versions
-const components = createStyledComponents(["div", "span", "button"]);
-// Available: Div, DivStyled, Span, SpanStyled, Button, ButtonStyled
-const Container = components.Div({ display: "flex" });
-const StyledText = components.SpanStyled({ fontSize: 14 });
-const StyledButton = components.ButtonStyled({ borderRadius: 8 });
-```
-
-### Type Mapping for HTML Elements
-
-The library includes a complete type mapping for HTML elements:
-
-```typescript
-import { HTMLElementTypeMap } from "chained-styles/web";
-
-// HTMLElementTypeMap includes mappings like:
-// div: HTMLDivElement
-// button: HTMLButtonElement
-// input: HTMLInputElement
-// etc.
-```
-
-## Bundle Size Optimization
-
-To ensure optimal bundle size:
-
-1. **Use platform-specific imports**: Import from `/web` or `/native` directly
-2. **Avoid the main index**: The main index includes both platforms
-3. **Import only what you need**: Tree-shaking will eliminate unused components
-
-```typescript
-// ✅ Good - Only includes web components
-import { styledComponents } from "chained-styles/web";
-
-// ❌ Bad - Includes both web and native
-import { web } from "chained-styles";
-```
-
-## License
-
-ISC
